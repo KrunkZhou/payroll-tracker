@@ -58,6 +58,22 @@ function App() {
   const emojiIntervalRef = useRef(null);
   const notificationTimerRef = useRef(null);
   
+  // Dismiss notification manually - wrap in useCallback
+  const dismissNotification = useCallback(() => {
+    if (notificationTimerRef.current) {
+      clearTimeout(notificationTimerRef.current);
+    }
+    
+    // Set exiting state to trigger animation
+    setIsExiting(true);
+    
+    // Wait for animation to complete before removing
+    setTimeout(() => {
+      setNotification(null);
+      setIsExiting(false);
+    }, 300); // Match animation duration
+  }, []);
+  
   // Display notification - wrap in useCallback
   const showNotification = useCallback((message, type = 'info') => {
     // Clear any existing notification timer
@@ -75,23 +91,7 @@ function App() {
     notificationTimerRef.current = setTimeout(() => {
       dismissNotification();
     }, 4000);
-  }, []);
-  
-  // Dismiss notification manually - wrap in useCallback
-  const dismissNotification = useCallback(() => {
-    if (notificationTimerRef.current) {
-      clearTimeout(notificationTimerRef.current);
-    }
-    
-    // Set exiting state to trigger animation
-    setIsExiting(true);
-    
-    // Wait for animation to complete before removing
-    setTimeout(() => {
-      setNotification(null);
-      setIsExiting(false);
-    }, 300); // Match animation duration
-  }, []);
+  }, [dismissNotification]);
   
   // Save settings to localStorage when they change
   useEffect(() => {
