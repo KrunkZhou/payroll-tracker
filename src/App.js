@@ -190,6 +190,38 @@ function App() {
     };
   }, [isRunning, hourlyRate, duration, showNotification]);
   
+  // Time sync check - verify timer accuracy every 10 seconds
+  useEffect(() => {
+    let syncCheckInterval;
+    
+    if (isRunning && startTimeRef.current) {
+      // Set up interval to check time sync every 10 seconds
+      syncCheckInterval = setInterval(() => {
+        const currentTime = new Date();
+        const expectedElapsed = Math.max(0, (currentTime - startTimeRef.current) / 1000);
+        const timeDrift = Math.abs(expectedElapsed - elapsed);
+        
+        // If drift is more than 0.5 seconds, resync the timer
+        if (timeDrift > 0.5) {
+          console.log(`Time drift detected: ${timeDrift.toFixed(2)}s. Resyncing timer.`);
+          
+          // Update elapsed time to the correct value
+          setElapsed(expectedElapsed);
+          
+          // Recalculate earnings based on corrected elapsed time
+          const correctedEarnings = (hourlyRate / 3600) * expectedElapsed;
+          setEarnings(correctedEarnings);
+        }
+      }, 10000); // Check every 10 seconds
+    }
+    
+    return () => {
+      if (syncCheckInterval) {
+        clearInterval(syncCheckInterval);
+      }
+    };
+  }, [isRunning, elapsed, hourlyRate]);
+  
   // Emoji animation effect
   useEffect(() => {
     // Money-related emojis
