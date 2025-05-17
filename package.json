@@ -2,7 +2,7 @@
   "name": "payroll-tracker",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://github.com/KrunkZhou/payroll-tracker",
+  "homepage": "https://krunkzhou.github.io/payroll-tracker",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
