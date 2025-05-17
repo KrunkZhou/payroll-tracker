@@ -191,6 +191,7 @@ body {
   background-color: var(--bg-color);
   color: var(--text-color);
   transition: background-color 0.3s, color 0.3s;
+  font-variant-numeric: tabular-nums;
 }
 
 main.fullscreen-earnings {
@@ -229,6 +230,7 @@ main.fullscreen-earnings {
   text-align: center;
   position: relative;
   z-index: 20;
+  font-variant-numeric: tabular-nums;
 }
 
 .earnings-amount span {
@@ -446,6 +448,7 @@ small {
   font-weight: 600;
   display: block;
   color: var(--light-text);
+  font-variant-numeric: tabular-nums;
 }
 
 .rate-display {
@@ -456,6 +459,7 @@ small {
   opacity: 0.8;
   position: relative;
   z-index: 20;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Settings Modal Styles */
@@ -600,4 +604,18 @@ small {
   .button-group {
     width: 100%;
   }
+}
+
+/* Ensure time input uses 24-hour format */
+input[type="time"], input[type="number"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--input-bg);
+  color: var(--light-text);
+  font-variant-numeric: tabular-nums;
 } 
