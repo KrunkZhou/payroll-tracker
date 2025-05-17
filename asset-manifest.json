@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/KrunkZhou/payroll-tracker/static/css/main.160e66f4.css",
+    "main.js": "/KrunkZhou/payroll-tracker/static/js/main.ace9dbef.js",
+    "static/js/453.55b723b4.chunk.js": "/KrunkZhou/payroll-tracker/static/js/453.55b723b4.chunk.js",
+    "index.html": "/KrunkZhou/payroll-tracker/index.html",
+    "main.160e66f4.css.map": "/KrunkZhou/payroll-tracker/static/css/main.160e66f4.css.map",
+    "main.ace9dbef.js.map": "/KrunkZhou/payroll-tracker/static/js/main.ace9dbef.js.map",
+    "453.55b723b4.chunk.js.map": "/KrunkZhou/payroll-tracker/static/js/453.55b723b4.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.160e66f4.css",
+    "static/js/main.ace9dbef.js"
+  ]
+}
