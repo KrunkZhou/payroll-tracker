@@ -46,10 +46,12 @@ function App() {
   });
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSettingsExiting, setIsSettingsExiting] = useState(false);
   const [emojis, setEmojis] = useState([]);
   
   // Notification system
   const [notification, setNotification] = useState(null);
+  const [isExiting, setIsExiting] = useState(false);
   
   const timerRef = useRef(null);
   const startTimeRef = useRef(null);
@@ -63,12 +65,15 @@ function App() {
       clearTimeout(notificationTimerRef.current);
     }
     
+    // Reset exiting state
+    setIsExiting(false);
+    
     // Set the new notification
     setNotification({ message, type });
     
     // Auto dismiss after 4 seconds
     notificationTimerRef.current = setTimeout(() => {
-      setNotification(null);
+      dismissNotification();
     }, 4000);
   }, []);
   
@@ -77,7 +82,15 @@ function App() {
     if (notificationTimerRef.current) {
       clearTimeout(notificationTimerRef.current);
     }
-    setNotification(null);
+    
+    // Set exiting state to trigger animation
+    setIsExiting(true);
+    
+    // Wait for animation to complete before removing
+    setTimeout(() => {
+      setNotification(null);
+      setIsExiting(false);
+    }, 300); // Match animation duration
   }, []);
   
   // Save settings to localStorage when they change
@@ -417,7 +430,18 @@ function App() {
   
   // Toggle settings popup
   const toggleSettings = useCallback(() => {
-    setIsSettingsOpen(!isSettingsOpen);
+    if (isSettingsOpen) {
+      // Start exit animation
+      setIsSettingsExiting(true);
+      
+      // Wait for animation to complete before closing
+      setTimeout(() => {
+        setIsSettingsOpen(false);
+        setIsSettingsExiting(false);
+      }, 300); // Match animation duration
+    } else {
+      setIsSettingsOpen(true);
+    }
   }, [isSettingsOpen]);
   
   // Clear all stored data
@@ -527,7 +551,7 @@ function App() {
     <div className="app dark-theme">
       {/* Notification component */}
       {notification && (
-        <div className={`notification ${notification.type}`}>
+        <div className={`notification ${notification.type} ${isExiting ? 'exiting' : ''}`}>
           <span className="notification-message">{notification.message}</span>
           <button 
             className="notification-close" 
@@ -578,9 +602,9 @@ function App() {
             )}
           </div>
           
-          <div className="rate-display">
-            <span>Current Rate: {formatCurrency(hourlyRate)} per hour</span>
-          </div>
+          {/* <div className="rate-display">
+            <span>{formatCurrency(hourlyRate)}/hr</span>
+          </div> */}
           
           <div className="fullscreen-controls">
             <div className="button-group">
@@ -594,7 +618,7 @@ function App() {
                 </button>
               ) : (
                 <button className="btn pause small" onClick={pauseTimer}>
-                  Pause
+                  Pause - {formatCurrency(hourlyRate)}/hr
                 </button>
               )}
               <button 
@@ -609,11 +633,11 @@ function App() {
         </div>
 
         {/* Settings Popup/Modal */}
-        {isSettingsOpen && (
-          <div className="settings-modal-overlay">
-            <div className="settings-modal">
+        {(isSettingsOpen || isSettingsExiting) && (
+          <div className={`settings-modal-overlay ${isSettingsExiting ? 'exiting' : ''}`}>
+            <div className={`settings-modal ${isSettingsExiting ? 'exiting' : ''}`}>
               <div className="settings-modal-header">
-                <h2>Work Settings</h2>
+                <h2>Settings</h2>
                 <button 
                   className="close-settings-btn" 
                   onClick={toggleSettings}
