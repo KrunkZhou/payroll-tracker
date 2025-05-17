@@ -34,6 +34,12 @@ function App() {
     return saved !== null ? parseFloat(saved) : 0;
   });
   
+  // Add a new state variable to track if timer was manually paused
+  const [manuallyPaused, setManuallyPaused] = useState(() => {
+    const saved = localStorage.getItem('manuallyPaused');
+    return saved === 'true';
+  });
+  
   const [endTime, setEndTime] = useState(() => {
     const saved = localStorage.getItem('endTime');
     return saved !== null ? new Date(parseInt(saved)) : null;
@@ -100,6 +106,11 @@ function App() {
     localStorage.setItem('elapsed', elapsed.toString());
   }, [elapsed]);
   
+  // Save manuallyPaused state to localStorage
+  useEffect(() => {
+    localStorage.setItem('manuallyPaused', manuallyPaused.toString());
+  }, [manuallyPaused]);
+  
   useEffect(() => {
     if (endTime) {
       localStorage.setItem('endTime', endTime.getTime().toString());
@@ -119,14 +130,43 @@ function App() {
   
   // Resume timer on page refresh if it was running
   useEffect(() => {
-    if (isRunning) {
+    if (isRunning && startTimeRef.current) {
+      // Update elapsed time immediately to sync with system time
+      const now = new Date();
+      const elapsedSeconds = Math.max(0, (now - startTimeRef.current) / 1000);
+      setElapsed(elapsedSeconds);
+      
+      // Calculate earnings based on actual elapsed time
+      const earnedAmount = (hourlyRate / 3600) * elapsedSeconds;
+      setEarnings(earnedAmount);
+      
+      // Set up interval that calculates elapsed time from the start time on each tick
       timerRef.current = setInterval(() => {
-        setElapsed(prev => {
-          const current = prev + 1;
-          const earnedAmount = (hourlyRate / 3600) * current;
-          setEarnings(earnedAmount);
-          return current;
-        });
+        const currentTime = new Date();
+        const actualElapsed = Math.max(0, (currentTime - startTimeRef.current) / 1000);
+        
+        // Update elapsed time based on actual time difference
+        setElapsed(actualElapsed);
+        
+        // Calculate earnings based on actual elapsed time
+        const currentEarnings = (hourlyRate / 3600) * actualElapsed;
+        setEarnings(currentEarnings);
+        
+        // Check if we've reached the work duration
+        const durationInSeconds = duration * 3600;
+        if (actualElapsed >= durationInSeconds) {
+          clearInterval(timerRef.current);
+          setIsRunning(false);
+          
+          // Set elapsed time to exactly the duration
+          setElapsed(durationInSeconds);
+          
+          // Calculate final earnings based on full duration
+          const finalEarnings = (hourlyRate / 3600) * durationInSeconds;
+          setEarnings(finalEarnings);
+          
+          showNotification('Work duration completed!', 'success');
+        }
       }, 1000);
     }
     
@@ -135,7 +175,7 @@ function App() {
         clearInterval(timerRef.current);
       }
     };
-  }, [isRunning, hourlyRate]);
+  }, [isRunning, hourlyRate, duration, showNotification]);
   
   // Emoji animation effect
   useEffect(() => {
@@ -199,6 +239,9 @@ function App() {
   const startTimer = useCallback(() => {
     if (isRunning) return;
     
+    // Reset manually paused flag when explicitly starting the timer
+    setManuallyPaused(false);
+    
     const now = new Date();
     let start;
     
@@ -243,39 +286,41 @@ function App() {
     const initialElapsed = Math.max(0, (now - start) / 1000);
     setElapsed(initialElapsed);
     
-    // Start the interval
+    // Calculate initial earnings
+    const initialEarnings = (hourlyRate / 3600) * initialElapsed;
+    setEarnings(initialEarnings);
+    
+    // Start the interval that calculates time based on actual time difference
     timerRef.current = setInterval(() => {
-      setElapsed(prev => {
-        const current = prev + 1;
-        // Calculate earnings based on elapsed time and hourly rate
-        const earnedAmount = (hourlyRate / 3600) * current;
-        setEarnings(earnedAmount);
-        
-        // Check if we've reached the work duration
-        const durationInSeconds = duration * 3600;
-        if (current >= durationInSeconds) {
-          // Instead of calling pauseTimer directly, do the same operations inline
-          clearInterval(timerRef.current);
-          setIsRunning(false);
-          // Set elapsed time to exactly the duration
-          const exactDuration = duration * 3600;
-          setElapsed(exactDuration);
-          // Calculate final earnings based on full duration
-          const finalEarnings = (hourlyRate / 3600) * exactDuration;
-          setEarnings(finalEarnings);
-          showNotification('Work duration completed!', 'success');
-          return exactDuration; // Cap the elapsed time at the duration
-        }
-        
-        return current;
-      });
+      const currentTime = new Date();
+      const actualElapsed = Math.max(0, (currentTime - start) / 1000);
+      
+      // Update elapsed time based on actual time difference
+      setElapsed(actualElapsed);
+      
+      // Calculate earnings based on actual elapsed time
+      const earnedAmount = (hourlyRate / 3600) * actualElapsed;
+      setEarnings(earnedAmount);
+      
+      // Check if we've reached the work duration
+      const durationInSeconds = duration * 3600;
+      if (actualElapsed >= durationInSeconds) {
+        clearInterval(timerRef.current);
+        setIsRunning(false);
+        // Set elapsed time to exactly the duration
+        setElapsed(durationInSeconds);
+        // Calculate final earnings based on full duration
+        const finalEarnings = (hourlyRate / 3600) * durationInSeconds;
+        setEarnings(finalEarnings);
+        showNotification('Work duration completed!', 'success');
+      }
     }, 1000);
     
     // Close settings after starting
     setIsSettingsOpen(false);
     
     // Show notification
-    showNotification('Timer started! You are now earning', 'success');
+    // showNotification('Timer started! You are now earning', 'success');
   }, [duration, hourlyRate, isRunning, showNotification, startTime]);
   
   // Apply settings while timer is running
@@ -348,6 +393,10 @@ function App() {
     if (!isRunning) return;
     clearInterval(timerRef.current);
     setIsRunning(false);
+    
+    // Set manually paused flag to prevent auto-restart
+    setManuallyPaused(true);
+    
     showNotification('Timer paused', 'warning');
   }, [isRunning, showNotification]);
   
@@ -359,6 +408,10 @@ function App() {
     setEarnings(0);
     startTimeRef.current = null;
     setEndTime(null);
+    
+    // Reset manually paused flag on timer reset
+    setManuallyPaused(false);
+    
     showNotification('Timer reset', 'info');
   }, [showNotification]);
   
@@ -376,11 +429,12 @@ function App() {
     setEarnings(0);
     startTimeRef.current = null;
     setEndTime(null);
+    setManuallyPaused(false);
     
     // List of keys to remove
     const keysToRemove = [
       'hourlyRate', 'startTime', 'duration',
-      'earnings', 'isRunning', 'elapsed', 'endTime'
+      'earnings', 'isRunning', 'elapsed', 'endTime', 'manuallyPaused'
     ];
     
     // Remove each key from localStorage
@@ -396,8 +450,8 @@ function App() {
   
   // Add a new useEffect to check for auto-start based on start time
   useEffect(() => {
-    // Only proceed if timer is not running and a start time is set
-    if (isRunning || !startTime || !startTimeRef.current) return;
+    // Only proceed if timer is not running, not manually paused, and a start time is set
+    if (isRunning || manuallyPaused || !startTime || !startTimeRef.current) return;
     
     // Set up an interval to check current time against start time
     const autoStartCheckRef = setInterval(() => {
@@ -416,31 +470,30 @@ function App() {
         const initialEarnings = (hourlyRate / 3600) * initialElapsed;
         setEarnings(initialEarnings);
         
-        // Start the interval
+        // Start the interval with time-based calculation
         timerRef.current = setInterval(() => {
-          setElapsed(prev => {
-            const current = prev + 1;
-            // Calculate earnings based on elapsed time and hourly rate
-            const earnedAmount = (hourlyRate / 3600) * current;
-            setEarnings(earnedAmount);
-            
-            // Check if we've reached the work duration
-            const durationInSeconds = duration * 3600;
-            if (current >= durationInSeconds) {
-              clearInterval(timerRef.current);
-              setIsRunning(false);
-              // Set elapsed time to exactly the duration
-              const exactDuration = duration * 3600;
-              setElapsed(exactDuration);
-              // Calculate final earnings based on full duration
-              const finalEarnings = (hourlyRate / 3600) * exactDuration;
-              setEarnings(finalEarnings);
-              showNotification('Work duration completed!', 'success');
-              return exactDuration; // Cap the elapsed time at the duration
-            }
-            
-            return current;
-          });
+          const currentTime = new Date();
+          const actualElapsed = Math.max(0, (currentTime - startTimeValue) / 1000);
+          
+          // Update elapsed time based on actual time difference
+          setElapsed(actualElapsed);
+          
+          // Calculate earnings based on actual elapsed time
+          const earnedAmount = (hourlyRate / 3600) * actualElapsed;
+          setEarnings(earnedAmount);
+          
+          // Check if we've reached the work duration
+          const durationInSeconds = duration * 3600;
+          if (actualElapsed >= durationInSeconds) {
+            clearInterval(timerRef.current);
+            setIsRunning(false);
+            // Set elapsed time to exactly the duration
+            setElapsed(durationInSeconds);
+            // Calculate final earnings based on full duration
+            const finalEarnings = (hourlyRate / 3600) * durationInSeconds;
+            setEarnings(finalEarnings);
+            showNotification('Work duration completed!', 'success');
+          }
         }, 1000);
         
         showNotification('Timer started! You are now earning', 'success');
@@ -449,7 +502,7 @@ function App() {
     }, 1000); // Check every second for more accuracy
     
     return () => clearInterval(autoStartCheckRef);
-  }, [isRunning, startTime, duration, hourlyRate, showNotification]);
+  }, [isRunning, startTime, duration, hourlyRate, showNotification, manuallyPaused]);
   
   // Handle end time reached
   useEffect(() => {
