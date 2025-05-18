@@ -262,6 +262,63 @@ function App() {
     };
   }, [isRunning]);
   
+  // Handle device sleep/wake and page visibility changes
+  useEffect(() => {
+    // Skip if timer is not running
+    if (!isRunning || !startTimeRef.current) return;
+
+    // Function to synchronize timer after sleep or visibility change
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isRunning && startTimeRef.current) {
+        // Immediately recalculate elapsed time when page becomes visible
+        const now = new Date();
+        const actualElapsed = Math.max(0, (now - startTimeRef.current) / 1000);
+        
+        // Check if there's significant drift (which could indicate sleep/wake)
+        const timeDrift = Math.abs(actualElapsed - elapsed);
+        
+        if (timeDrift > 1) {
+          console.log(`Device likely woke from sleep. Time drift: ${timeDrift.toFixed(2)}s. Resyncing timer.`);
+          
+          // Update elapsed time to the correct value
+          setElapsed(actualElapsed);
+          
+          // Recalculate earnings based on corrected elapsed time
+          const correctedEarnings = (hourlyRate / 3600) * actualElapsed;
+          setEarnings(correctedEarnings);
+          
+          // Check if duration was reached during sleep
+          const durationInSeconds = duration * 3600;
+          if (actualElapsed >= durationInSeconds) {
+            clearInterval(timerRef.current);
+            setIsRunning(false);
+            
+            // Set elapsed time to exactly the duration
+            setElapsed(durationInSeconds);
+            
+            // Calculate final earnings based on full duration
+            const finalEarnings = (hourlyRate / 3600) * durationInSeconds;
+            setEarnings(finalEarnings);
+            
+            showNotification('Work duration completed while device was sleeping!', 'success');
+          }
+        }
+      }
+    };
+    
+    // Register visibility change listener
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Additional safeguard - check for sleep/wake detection using focus events
+    window.addEventListener('focus', handleVisibilityChange);
+    
+    // Clean up event listeners
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
+  }, [isRunning, elapsed, hourlyRate, duration, showNotification]);
+  
   // Format currency
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
@@ -295,22 +352,61 @@ function App() {
       const [hours, minutes] = startTime.split(':');
       start.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0);
       
-      // Handle future start time
+      // Check if this time appears to be in the future
       if (start > now) {
-        // Set up a scheduled start
-        showNotification(`Timer will start at ${startTime}`, 'info');
+        // First, check if treating this as yesterday's time makes more sense
+        const yesterdayStart = new Date(start);
+        yesterdayStart.setDate(yesterdayStart.getDate() - 1);
         
-        // Store start time for reference
-        startTimeRef.current = start;
+        const durationInMs = duration * 60 * 60 * 1000;
+        const timeFromYesterdayStart = now - yesterdayStart;
         
-        // Calculate end time based on duration
-        const end = new Date(start.getTime() + duration * 60 * 60 * 1000);
-        setEndTime(end);
+        // If the time since yesterday's start is within the duration window,
+        // assume the user meant yesterday's time
+        if (timeFromYesterdayStart >= 0 && timeFromYesterdayStart <= durationInMs) {
+          start = yesterdayStart;
+          console.log('Interpreted future time as yesterday\'s time:', start.toLocaleString());
+          showNotification(`Timer started with yesterday's start time (${startTime})`, 'info');
+        } else {
+          // This is genuinely a future start time
+          showNotification(`Timer will start at ${startTime}`, 'info');
+          
+          // Store start time for reference
+          startTimeRef.current = start;
+          
+          // Calculate end time based on duration
+          const end = new Date(start.getTime() + duration * 60 * 60 * 1000);
+          setEndTime(end);
+          
+          // Close settings after scheduling
+          setIsSettingsOpen(false);
+          
+          return;
+        }
+      } else {
+        // Handle start time from yesterday if within work duration
+        const durationInMs = duration * 60 * 60 * 1000;
+        const timeSinceStart = now - start;
         
-        // Close settings after scheduling
-        setIsSettingsOpen(false);
-        
-        return;
+        // If the start time is earlier today but more than the duration ago,
+        // it's likely from yesterday but within duration
+        if (timeSinceStart > durationInMs) {
+          // Check if it's reasonable to assume it's from yesterday (within 24h + duration)
+          if (timeSinceStart < (24 * 60 * 60 * 1000) + durationInMs) {
+            // Adjust start time to yesterday
+            start.setDate(start.getDate() - 1);
+            console.log('Start time adjusted to yesterday:', start.toLocaleString());
+            
+            // Check if now is still within the duration window
+            const potentialEnd = new Date(start.getTime() + durationInMs);
+            if (now <= potentialEnd) {
+              showNotification(`Timer started with yesterday's start time (${startTime})`, 'info');
+            } else {
+              // If we're beyond the duration window, use the max duration
+              showNotification(`Timer started with yesterday's time, but duration already exceeded`, 'warning');
+            }
+          }
+        }
       }
     } else {
       start = now;
@@ -329,22 +425,26 @@ function App() {
     
     // Calculate initial elapsed time if start time is in the past
     const initialElapsed = Math.max(0, (now - start) / 1000);
-    setElapsed(initialElapsed);
+    // Cap initial elapsed at duration if it exceeds it
+    const cappedElapsed = Math.min(initialElapsed, duration * 3600);
+    setElapsed(cappedElapsed);
     
     // Calculate initial earnings
-    const initialEarnings = (hourlyRate / 3600) * initialElapsed;
+    const initialEarnings = (hourlyRate / 3600) * cappedElapsed;
     setEarnings(initialEarnings);
     
     // Start the interval that calculates time based on actual time difference
     timerRef.current = setInterval(() => {
       const currentTime = new Date();
       const actualElapsed = Math.max(0, (currentTime - start) / 1000);
+      // Cap elapsed time at duration
+      const cappedCurrentElapsed = Math.min(actualElapsed, duration * 3600);
       
       // Update elapsed time based on actual time difference
-      setElapsed(actualElapsed);
+      setElapsed(cappedCurrentElapsed);
       
       // Calculate earnings based on actual elapsed time
-      const earnedAmount = (hourlyRate / 3600) * actualElapsed;
+      const earnedAmount = (hourlyRate / 3600) * cappedCurrentElapsed;
       setEarnings(earnedAmount);
       
       // Check if we've reached the work duration
@@ -352,11 +452,14 @@ function App() {
       if (actualElapsed >= durationInSeconds) {
         clearInterval(timerRef.current);
         setIsRunning(false);
+        
         // Set elapsed time to exactly the duration
         setElapsed(durationInSeconds);
+        
         // Calculate final earnings based on full duration
         const finalEarnings = (hourlyRate / 3600) * durationInSeconds;
         setEarnings(finalEarnings);
+        
         showNotification('Work duration completed!', 'success');
       }
     }, 1000);
@@ -364,8 +467,6 @@ function App() {
     // Close settings after starting
     setIsSettingsOpen(false);
     
-    // Show notification
-    // showNotification('Timer started! You are now earning', 'success');
   }, [duration, hourlyRate, isRunning, showNotification, startTime]);
   
   // Apply settings while timer is running
