@@ -45,6 +45,12 @@ function App() {
     return saved !== null ? new Date(parseInt(saved)) : null;
   });
 
+  // Add state to store actual start timestamp
+  const [startTimestamp, setStartTimestamp] = useState(() => {
+    const saved = localStorage.getItem('startTimestamp');
+    return saved !== null ? parseInt(saved) : null;
+  });
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSettingsExiting, setIsSettingsExiting] = useState(false);
   const [emojis, setEmojis] = useState([]);
@@ -57,6 +63,22 @@ function App() {
   const startTimeRef = useRef(null);
   const emojiIntervalRef = useRef(null);
   const notificationTimerRef = useRef(null);
+  
+  // Initialize startTimeRef from localStorage on component mount
+  useEffect(() => {
+    if (startTimestamp) {
+      startTimeRef.current = new Date(startTimestamp);
+    }
+  }, [startTimestamp]);
+  
+  // Save startTimestamp to localStorage when it changes
+  useEffect(() => {
+    if (startTimestamp) {
+      localStorage.setItem('startTimestamp', startTimestamp.toString());
+    } else {
+      localStorage.removeItem('startTimestamp');
+    }
+  }, [startTimestamp]);
   
   // Dismiss notification manually - wrap in useCallback
   const dismissNotification = useCallback(() => {
@@ -373,6 +395,8 @@ function App() {
           
           // Store start time for reference
           startTimeRef.current = start;
+          // Save timestamp to state for persistence
+          setStartTimestamp(start.getTime());
           
           // Calculate end time based on duration
           const end = new Date(start.getTime() + duration * 60 * 60 * 1000);
@@ -416,6 +440,8 @@ function App() {
     }
     
     startTimeRef.current = start;
+    // Save timestamp to state for persistence
+    setStartTimestamp(start.getTime());
     
     // Calculate end time based on duration
     const end = new Date(start.getTime() + duration * 60 * 60 * 1000);
@@ -492,6 +518,8 @@ function App() {
         
         // Store the new start time
         startTimeRef.current = newStart;
+        // Update timestamp in state for persistence
+        setStartTimestamp(newStart.getTime());
         
         // Calculate end time based on duration
         const newEnd = new Date(newStart.getTime() + duration * 60 * 60 * 1000);
@@ -511,6 +539,8 @@ function App() {
       
       // Update start time reference
       startTimeRef.current = newStart;
+      // Update timestamp in state for persistence
+      setStartTimestamp(newStart.getTime());
       
       // Recalculate elapsed time
       const newElapsed = Math.max(0, (now - newStart) / 1000);
@@ -553,6 +583,7 @@ function App() {
     setElapsed(0);
     setEarnings(0);
     startTimeRef.current = null;
+    setStartTimestamp(null); // Clear the persisted start timestamp
     setEndTime(null);
     
     // Reset manually paused flag on timer reset
@@ -585,13 +616,15 @@ function App() {
     setElapsed(0);
     setEarnings(0);
     startTimeRef.current = null;
+    setStartTimestamp(null);
     setEndTime(null);
     setManuallyPaused(false);
     
     // List of keys to remove
     const keysToRemove = [
       'hourlyRate', 'startTime', 'duration',
-      'earnings', 'isRunning', 'elapsed', 'endTime', 'manuallyPaused'
+      'earnings', 'isRunning', 'elapsed', 'endTime', 
+      'manuallyPaused', 'startTimestamp'
     ];
     
     // Remove each key from localStorage
@@ -627,6 +660,12 @@ function App() {
         const initialEarnings = (hourlyRate / 3600) * initialElapsed;
         setEarnings(initialEarnings);
         
+        // Save start time for persistence across page loads
+        // startTimeRef is already set, just need to update the state value
+        if (startTimeRef.current && !startTimestamp) {
+          setStartTimestamp(startTimeRef.current.getTime());
+        }
+        
         // Start the interval with time-based calculation
         timerRef.current = setInterval(() => {
           const currentTime = new Date();
@@ -659,7 +698,7 @@ function App() {
     }, 1000); // Check every second for more accuracy
     
     return () => clearInterval(autoStartCheckRef);
-  }, [isRunning, startTime, duration, hourlyRate, showNotification, manuallyPaused]);
+  }, [isRunning, startTime, duration, hourlyRate, showNotification, manuallyPaused, startTimestamp]);
   
   // Handle end time reached
   useEffect(() => {
