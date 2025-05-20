@@ -2,6 +2,19 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 
 function App() {
+  // Move isZerollMode to the top
+  const [isZerollMode, setIsZerollMode] = useState(() => {
+    const saved = localStorage.getItem('isZerollMode');
+    return saved === 'true';
+  });
+
+  // Create refs for the current mode
+  const isZerollModeRef = useRef(isZerollMode);
+  const timerRef = useRef(null);
+  const startTimeRef = useRef(null);
+  const emojiIntervalRef = useRef(null);
+  const notificationTimerRef = useRef(null);
+
   // Load settings from localStorage or use defaults
   const [hourlyRate, setHourlyRate] = useState(() => {
     const saved = localStorage.getItem('hourlyRate');
@@ -20,21 +33,23 @@ function App() {
   
   // Load saved timer state if exists
   const [earnings, setEarnings] = useState(() => {
-    const saved = localStorage.getItem('earnings');
+    const prefix = isZerollMode ? 'zeroll' : '';
+    const saved = localStorage.getItem(`${prefix}earnings`);
     return saved !== null ? parseFloat(saved) : 0;
   });
   
   const [isRunning, setIsRunning] = useState(() => {
-    const saved = localStorage.getItem('isRunning');
+    const prefix = isZerollMode ? 'zeroll' : '';
+    const saved = localStorage.getItem(`${prefix}isRunning`);
     return saved === 'true';
   });
   
   const [elapsed, setElapsed] = useState(() => {
-    const saved = localStorage.getItem('elapsed');
+    const prefix = isZerollMode ? 'zeroll' : '';
+    const saved = localStorage.getItem(`${prefix}elapsed`);
     return saved !== null ? parseFloat(saved) : 0;
   });
   
-  // Add a new state variable to track if timer was manually paused
   const [manuallyPaused, setManuallyPaused] = useState(() => {
     const saved = localStorage.getItem('manuallyPaused');
     return saved === 'true';
@@ -45,7 +60,6 @@ function App() {
     return saved !== null ? new Date(parseInt(saved)) : null;
   });
 
-  // Add state to store actual start timestamp
   const [startTimestamp, setStartTimestamp] = useState(() => {
     const saved = localStorage.getItem('startTimestamp');
     return saved !== null ? parseInt(saved) : null;
@@ -54,32 +68,25 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSettingsExiting, setIsSettingsExiting] = useState(false);
   const [emojis, setEmojis] = useState([]);
-  
-  // Notification system
   const [notification, setNotification] = useState(null);
   const [isExiting, setIsExiting] = useState(false);
-  
-  const timerRef = useRef(null);
-  const startTimeRef = useRef(null);
-  const emojiIntervalRef = useRef(null);
-  const notificationTimerRef = useRef(null);
-  
-  // Initialize startTimeRef from localStorage on component mount
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  // Money-related emojis for payroll mode
+  const moneyEmojis = ['💰', '💵', '💲', '💸', '🤑', '💎', '👑', '💶', '💷'];
+  // Sad emojis for zeroll mode
+  const sadEmojis = ['😢', '😭', '😔', '😞', '😥', '💔', '😪', '😫', '😩'];
+
+  // Update ref when mode changes
   useEffect(() => {
-    if (startTimestamp) {
-      startTimeRef.current = new Date(startTimestamp);
-    }
-  }, [startTimestamp]);
-  
-  // Save startTimestamp to localStorage when it changes
+    isZerollModeRef.current = isZerollMode;
+  }, [isZerollMode]);
+
+  // Save zeroll mode state to localStorage
   useEffect(() => {
-    if (startTimestamp) {
-      localStorage.setItem('startTimestamp', startTimestamp.toString());
-    } else {
-      localStorage.removeItem('startTimestamp');
-    }
-  }, [startTimestamp]);
-  
+    localStorage.setItem('isZerollMode', isZerollMode.toString());
+  }, [isZerollMode]);
+
   // Dismiss notification manually - wrap in useCallback
   const dismissNotification = useCallback(() => {
     if (notificationTimerRef.current) {
@@ -114,6 +121,97 @@ function App() {
       dismissNotification();
     }, 4000);
   }, [dismissNotification]);
+
+  // Update timer states when mode changes
+  useEffect(() => {
+    const prefix = isZerollMode ? 'zeroll' : '';
+    // Load mode-specific timer states
+    const savedEarnings = localStorage.getItem(`${prefix}earnings`);
+    const savedIsRunning = localStorage.getItem(`${prefix}isRunning`);
+    const savedElapsed = localStorage.getItem(`${prefix}elapsed`);
+    
+    setEarnings(savedEarnings !== null ? parseFloat(savedEarnings) : 0);
+    setIsRunning(savedIsRunning === 'true');
+    setElapsed(savedElapsed !== null ? parseFloat(savedElapsed) : 0);
+  }, [isZerollMode]);
+
+  // Save timer states with mode-specific keys
+  useEffect(() => {
+    const prefix = isZerollMode ? 'zeroll' : '';
+    localStorage.setItem(`${prefix}earnings`, earnings.toString());
+  }, [earnings, isZerollMode]);
+
+  useEffect(() => {
+    const prefix = isZerollMode ? 'zeroll' : '';
+    localStorage.setItem(`${prefix}isRunning`, isRunning.toString());
+  }, [isRunning, isZerollMode]);
+
+  useEffect(() => {
+    const prefix = isZerollMode ? 'zeroll' : '';
+    localStorage.setItem(`${prefix}elapsed`, elapsed.toString());
+  }, [elapsed, isZerollMode]);
+
+  // Toggle zeroll mode with animation and reset timer
+  const toggleZerollMode = useCallback(() => {
+    setIsAnimating(true);
+    setIsZerollMode(prev => !prev);
+    // Reset animation state after animation completes
+    setTimeout(() => setIsAnimating(false), 300);
+
+    // Complete timer reset when switching modes
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (emojiIntervalRef.current) {
+      clearInterval(emojiIntervalRef.current);
+      emojiIntervalRef.current = null;
+    }
+    
+    // Reset all timer-related states
+    setIsRunning(false);
+    setElapsed(0);
+    setEarnings(0);
+    startTimeRef.current = null;
+    setStartTimestamp(null);
+    setEndTime(null);
+    setManuallyPaused(false);
+    setEmojis([]);
+
+    // Clear all mode-specific localStorage items
+    const keysToRemove = [
+      'earnings',
+      'isRunning',
+      'elapsed',
+      'startTimestamp',
+      'endTime',
+      'manuallyPaused',
+      'zerollEarnings',
+      'zerollIsRunning',
+      'zerollElapsed'
+    ];
+    
+    // Remove each key from localStorage
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
+    showNotification('Mode switched - Timer reset', 'info');
+  }, [showNotification]);
+
+  // Initialize startTimeRef from localStorage on component mount
+  useEffect(() => {
+    if (startTimestamp) {
+      startTimeRef.current = new Date(startTimestamp);
+    }
+  }, [startTimestamp]);
+  
+  // Save startTimestamp to localStorage when it changes
+  useEffect(() => {
+    if (startTimestamp) {
+      localStorage.setItem('startTimestamp', startTimestamp.toString());
+    } else {
+      localStorage.removeItem('startTimestamp');
+    }
+  }, [startTimestamp]);
   
   // Save settings to localStorage when they change
   useEffect(() => {
@@ -127,19 +225,6 @@ function App() {
   useEffect(() => {
     localStorage.setItem('duration', duration.toString());
   }, [duration]);
-  
-  // Save timer state to localStorage
-  useEffect(() => {
-    localStorage.setItem('earnings', earnings.toString());
-  }, [earnings]);
-  
-  useEffect(() => {
-    localStorage.setItem('isRunning', isRunning.toString());
-  }, [isRunning]);
-  
-  useEffect(() => {
-    localStorage.setItem('elapsed', elapsed.toString());
-  }, [elapsed]);
   
   // Save manuallyPaused state to localStorage
   useEffect(() => {
@@ -243,46 +328,6 @@ function App() {
       }
     };
   }, [isRunning, elapsed, hourlyRate]);
-  
-  // Emoji animation effect
-  useEffect(() => {
-    // Money-related emojis
-    const moneyEmojis = ['💰', '💵', '💲', '💸', '🤑', '💎', '👑', '💶', '💷'];
-    
-    if (isRunning) {
-      // Start creating emojis
-      emojiIntervalRef.current = setInterval(() => {
-        const newEmoji = {
-          id: Date.now(),
-          emoji: moneyEmojis[Math.floor(Math.random() * moneyEmojis.length)],
-          left: Math.random() * 100, // Random position from left (0-100%)
-          animationDuration: 3 + Math.random() * 4, // Random duration between 3-7s
-          size: 1 + Math.random() * 2 // Random size between 1-3em
-        };
-        
-        setEmojis(prevEmojis => [...prevEmojis, newEmoji]);
-        
-        // Remove emojis after they've fallen to prevent memory issues
-        setTimeout(() => {
-          setEmojis(prevEmojis => prevEmojis.filter(e => e.id !== newEmoji.id));
-        }, newEmoji.animationDuration * 1000);
-      }, 300); // Create a new emoji every 300ms
-    } else {
-      // Clear interval when not running
-      if (emojiIntervalRef.current) {
-        clearInterval(emojiIntervalRef.current);
-        emojiIntervalRef.current = null;
-      }
-      // Clear all emojis when stopped
-      setEmojis([]);
-    }
-    
-    return () => {
-      if (emojiIntervalRef.current) {
-        clearInterval(emojiIntervalRef.current);
-      }
-    };
-  }, [isRunning]);
   
   // Handle device sleep/wake and page visibility changes
   useEffect(() => {
@@ -407,30 +452,6 @@ function App() {
           
           return;
         }
-      } else {
-        // Handle start time from yesterday if within work duration
-        const durationInMs = duration * 60 * 60 * 1000;
-        const timeSinceStart = now - start;
-        
-        // If the start time is earlier today but more than the duration ago,
-        // it's likely from yesterday but within duration
-        if (timeSinceStart > durationInMs) {
-          // Check if it's reasonable to assume it's from yesterday (within 24h + duration)
-          if (timeSinceStart < (24 * 60 * 60 * 1000) + durationInMs) {
-            // Adjust start time to yesterday
-            start.setDate(start.getDate() - 1);
-            console.log('Start time adjusted to yesterday:', start.toLocaleString());
-            
-            // Check if now is still within the duration window
-            const potentialEnd = new Date(start.getTime() + durationInMs);
-            if (now <= potentialEnd) {
-              showNotification(`Timer started with yesterday's start time (${startTime})`, 'info');
-            } else {
-              // If we're beyond the duration window, use the max duration
-              showNotification(`Timer started with yesterday's time, but duration already exceeded`, 'warning');
-            }
-          }
-        }
       }
     } else {
       start = now;
@@ -439,8 +460,8 @@ function App() {
       setStartTime(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
     }
     
+    // Always start fresh when starting the timer
     startTimeRef.current = start;
-    // Save timestamp to state for persistence
     setStartTimestamp(start.getTime());
     
     // Calculate end time based on duration
@@ -448,16 +469,8 @@ function App() {
     setEndTime(end);
     
     setIsRunning(true);
-    
-    // Calculate initial elapsed time if start time is in the past
-    const initialElapsed = Math.max(0, (now - start) / 1000);
-    // Cap initial elapsed at duration if it exceeds it
-    const cappedElapsed = Math.min(initialElapsed, duration * 3600);
-    setElapsed(cappedElapsed);
-    
-    // Calculate initial earnings
-    const initialEarnings = (hourlyRate / 3600) * cappedElapsed;
-    setEarnings(initialEarnings);
+    setElapsed(0);
+    setEarnings(0);
     
     // Start the interval that calculates time based on actual time difference
     timerRef.current = setInterval(() => {
@@ -720,7 +733,7 @@ function App() {
   }, [elapsed, isRunning, endTime, showNotification, duration, hourlyRate]);
 
   return (
-    <div className="app dark-theme">
+    <div className={`app dark-theme ${isZerollMode ? 'zeroll-mode' : ''}`}>
       {/* Notification component */}
       {notification && (
         <div className={`notification ${notification.type} ${isExiting ? 'exiting' : ''}`}>
@@ -734,6 +747,21 @@ function App() {
           </button>
         </div>
       )}
+      
+      {/* Mode Toggle */}
+      <div className="mode-toggle">
+        <label className="mode-toggle-label">
+          <input 
+            type="checkbox" 
+            checked={isZerollMode} 
+            onChange={toggleZerollMode}
+            aria-label="Toggle Zeroll Mode"
+          />
+          <span className="mode-toggle-text">
+            {isZerollMode ? 'Zeroll Mode' : 'Payroll Mode'}
+          </span>
+        </label>
+      </div>
       
       <main className="fullscreen-earnings">
         {/* Falling Emojis */}
@@ -760,7 +788,9 @@ function App() {
           
           <div className="time-display">
             <div className="elapsed-time">
-              <h3>Elapsed Time</h3>
+              <h3 className={isAnimating ? 'animate' : ''}>
+                {isZerollMode ? 'Idle Time' : 'Elapsed Time'}
+              </h3>
               <span>{formatTime(elapsed)}</span>
             </div>
             
@@ -844,7 +874,7 @@ function App() {
                 </div>
                 
                 <div className="form-group">
-                  <label htmlFor="duration">Work Duration (hours)</label>
+                  <label htmlFor="duration">{isZerollMode ? 'Idle Duration' : 'Work Duration'} (hours)</label>
                   <input
                     type="number"
                     id="duration"
