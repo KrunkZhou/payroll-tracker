@@ -246,11 +246,13 @@ main.fullscreen-earnings {
   position: relative;
   z-index: 20;
   font-variant-numeric: tabular-nums;
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .earnings-amount span {
   position: relative;
   text-shadow: 0 0 15px rgba(46, 204, 113, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 h2 {
@@ -718,4 +720,169 @@ input[type="time"], input[type="number"] {
   background-color: var(--input-bg);
   color: var(--light-text);
   font-variant-numeric: tabular-nums;
+}
+
+/* Mode Toggle Styles */
+.mode-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 100;
+}
+
+.mode-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.6rem 0.75rem;
+  border-radius: 50px;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.mode-toggle-label:hover {
+  background-color: var(--hover-bg);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.mode-toggle input[type="checkbox"] {
+  appearance: none;
+  width: 3.5rem;
+  height: 1.75rem;
+  background-color: var(--accent-color);
+  border-radius: 1rem;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0.25rem;
+  border: none;
+  outline: none;
+}
+
+.mode-toggle input[type="checkbox"]::before {
+  content: '';
+  position: absolute;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  top: 0.25rem;
+  left: 0.25rem;
+  background-color: var(--card-bg);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.mode-toggle input[type="checkbox"]:checked {
+  background-color: var(--danger);
+  border: none;
+  outline: none;
+}
+
+.mode-toggle input[type="checkbox"]:checked::before {
+  transform: translateX(1.75rem);
+  background-color: var(--card-bg);
+}
+
+.mode-toggle-text {
+  font-size: 0.9rem;
+  color: var(--text-color);
+  user-select: none;
+  font-weight: 600;
+  min-width: 90px;
+  text-align: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app.zeroll-mode .mode-toggle input[type="checkbox"] {
+  background-color: var(--danger);
+}
+
+.app.zeroll-mode .mode-toggle input[type="checkbox"]:checked {
+  background-color: var(--danger);
+}
+
+.app.zeroll-mode .earnings-amount {
+  color: var(--danger);
+}
+
+.app.zeroll-mode .earnings-amount span {
+  text-shadow: 0 0 15px rgba(220, 53, 69, 0.4);
+}
+
+.app.zeroll-mode .elapsed-time h3,
+.app.zeroll-mode .remaining-time h3 {
+  color: var(--danger);
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app.zeroll-mode .btn.start {
+  background-color: var(--danger);
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app.zeroll-mode .btn.start:hover {
+  background-color: #bd2130;
+}
+
+
+.app.zeroll-mode .settings-modal-header h2 {
+  color: var(--danger);
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-bottom-color: var(--danger);
+}
+
+
+@keyframes morphToggle {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.mode-toggle input[type="checkbox"]:checked {
+  animation: morphToggle 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Add morph animation for the text */
+@keyframes morphText {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.mode-toggle-text {
+  animation: morphText 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
+.elapsed-time h3,
+.remaining-time h3 {
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: morphText 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.elapsed-time h3 {
+  animation-play-state: paused;
+}
+
+.elapsed-time h3.animate {
+  animation-play-state: running;
 } 
