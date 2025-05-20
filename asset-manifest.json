@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/payroll-tracker/static/css/main.6892d2ae.css",
-    "main.js": "/payroll-tracker/static/js/main.ceaa56c5.js",
+    "main.css": "/payroll-tracker/static/css/main.691c559f.css",
+    "main.js": "/payroll-tracker/static/js/main.9f7f5640.js",
     "static/js/453.55b723b4.chunk.js": "/payroll-tracker/static/js/453.55b723b4.chunk.js",
     "index.html": "/payroll-tracker/index.html",
-    "main.6892d2ae.css.map": "/payroll-tracker/static/css/main.6892d2ae.css.map",
-    "main.ceaa56c5.js.map": "/payroll-tracker/static/js/main.ceaa56c5.js.map",
+    "main.691c559f.css.map": "/payroll-tracker/static/css/main.691c559f.css.map",
+    "main.9f7f5640.js.map": "/payroll-tracker/static/js/main.9f7f5640.js.map",
     "453.55b723b4.chunk.js.map": "/payroll-tracker/static/js/453.55b723b4.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.6892d2ae.css",
-    "static/js/main.ceaa56c5.js"
+    "static/css/main.691c559f.css",
+    "static/js/main.9f7f5640.js"
   ]
 }
