@@ -17,38 +17,27 @@ function App() {
 
   // Load settings from localStorage or use defaults
   const [hourlyRate, setHourlyRate] = useState(() => {
-    const saved = localStorage.getItem('hourlyRate');
+    const prefix = isZerollMode ? 'zeroll' : '';
+    const saved = localStorage.getItem(`${prefix}hourlyRate`);
     return saved !== null ? parseFloat(saved) : 15;
   });
   
   const [startTime, setStartTime] = useState(() => {
-    const saved = localStorage.getItem('startTime');
+    const prefix = isZerollMode ? 'zeroll' : '';
+    const saved = localStorage.getItem(`${prefix}startTime`);
     return saved !== null ? saved : '';
   });
   
   const [duration, setDuration] = useState(() => {
-    const saved = localStorage.getItem('duration');
+    const prefix = isZerollMode ? 'zeroll' : '';
+    const saved = localStorage.getItem(`${prefix}duration`);
     return saved !== null ? parseFloat(saved) : 8;
   });
   
   // Load saved timer state if exists
-  const [earnings, setEarnings] = useState(() => {
-    const prefix = isZerollMode ? 'zeroll' : '';
-    const saved = localStorage.getItem(`${prefix}earnings`);
-    return saved !== null ? parseFloat(saved) : 0;
-  });
-  
-  const [isRunning, setIsRunning] = useState(() => {
-    const prefix = isZerollMode ? 'zeroll' : '';
-    const saved = localStorage.getItem(`${prefix}isRunning`);
-    return saved === 'true';
-  });
-  
-  const [elapsed, setElapsed] = useState(() => {
-    const prefix = isZerollMode ? 'zeroll' : '';
-    const saved = localStorage.getItem(`${prefix}elapsed`);
-    return saved !== null ? parseFloat(saved) : 0;
-  });
+  const [earnings, setEarnings] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   
   const [manuallyPaused, setManuallyPaused] = useState(() => {
     const saved = localStorage.getItem('manuallyPaused');
@@ -151,6 +140,35 @@ function App() {
     localStorage.setItem(`${prefix}elapsed`, elapsed.toString());
   }, [elapsed, isZerollMode]);
 
+  // Update settings when mode changes
+  useEffect(() => {
+    const prefix = isZerollMode ? 'zeroll' : '';
+    // Load mode-specific settings
+    const savedHourlyRate = localStorage.getItem(`${prefix}hourlyRate`);
+    const savedStartTime = localStorage.getItem(`${prefix}startTime`);
+    const savedDuration = localStorage.getItem(`${prefix}duration`);
+    
+    setHourlyRate(savedHourlyRate !== null ? parseFloat(savedHourlyRate) : 15);
+    setStartTime(savedStartTime !== null ? savedStartTime : '');
+    setDuration(savedDuration !== null ? parseFloat(savedDuration) : 8);
+  }, [isZerollMode]);
+
+  // Save settings with mode-specific keys
+  useEffect(() => {
+    const prefix = isZerollMode ? 'zeroll' : '';
+    localStorage.setItem(`${prefix}hourlyRate`, hourlyRate.toString());
+  }, [hourlyRate, isZerollMode]);
+
+  useEffect(() => {
+    const prefix = isZerollMode ? 'zeroll' : '';
+    localStorage.setItem(`${prefix}startTime`, startTime);
+  }, [startTime, isZerollMode]);
+
+  useEffect(() => {
+    const prefix = isZerollMode ? 'zeroll' : '';
+    localStorage.setItem(`${prefix}duration`, duration.toString());
+  }, [duration, isZerollMode]);
+
   // Toggle zeroll mode with animation and reset timer
   const toggleZerollMode = useCallback(() => {
     setIsAnimating(true);
@@ -177,6 +195,7 @@ function App() {
     setEndTime(null);
     setManuallyPaused(false);
     setEmojis([]);
+    setStartTime('');
 
     // Clear all mode-specific localStorage items
     const keysToRemove = [
@@ -188,7 +207,13 @@ function App() {
       'manuallyPaused',
       'zerollEarnings',
       'zerollIsRunning',
-      'zerollElapsed'
+      'zerollElapsed',
+      'startTime',
+      'hourlyRate',
+      'duration',
+      'zerollHourlyRate',
+      'zerollStartTime',
+      'zerollDuration'
     ];
     
     // Remove each key from localStorage
@@ -212,41 +237,6 @@ function App() {
       localStorage.removeItem('startTimestamp');
     }
   }, [startTimestamp]);
-  
-  // Save settings to localStorage when they change
-  useEffect(() => {
-    localStorage.setItem('hourlyRate', hourlyRate.toString());
-  }, [hourlyRate]);
-  
-  useEffect(() => {
-    localStorage.setItem('startTime', startTime);
-  }, [startTime]);
-  
-  useEffect(() => {
-    localStorage.setItem('duration', duration.toString());
-  }, [duration]);
-  
-  // Save manuallyPaused state to localStorage
-  useEffect(() => {
-    localStorage.setItem('manuallyPaused', manuallyPaused.toString());
-  }, [manuallyPaused]);
-  
-  useEffect(() => {
-    if (endTime) {
-      localStorage.setItem('endTime', endTime.getTime().toString());
-    } else {
-      localStorage.removeItem('endTime');
-    }
-  }, [endTime]);
-  
-  // Cleanup notification timer on unmount
-  useEffect(() => {
-    return () => {
-      if (notificationTimerRef.current) {
-        clearTimeout(notificationTimerRef.current);
-      }
-    };
-  }, []);
   
   // Resume timer on page refresh if it was running
   useEffect(() => {
@@ -934,4 +924,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;
