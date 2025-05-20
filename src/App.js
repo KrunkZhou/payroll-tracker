@@ -1,7 +1,19 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { changeLanguage } from './i18n';
+import { supportedLanguages } from './i18n/translations';
 import './App.css';
 
 function App() {
+  // Initialize i18n
+  const { t } = useTranslation();
+  
+  // Get current language from localStorage or default to 'system'
+  const [language, setLanguage] = useState(() => {
+    const savedLang = localStorage.getItem('language');
+    return savedLang || 'system';
+  });
+  
   // Load settings from localStorage or use defaults
   const [hourlyRate, setHourlyRate] = useState(() => {
     const saved = localStorage.getItem('hourlyRate');
@@ -59,10 +71,15 @@ function App() {
   const [notification, setNotification] = useState(null);
   const [isExiting, setIsExiting] = useState(false);
   
+  // State for congratulations animation
+  const [showCongrats, setShowCongrats] = useState(false);
+  const [isCongratsExiting, setIsCongratsExiting] = useState(false);
+  
   const timerRef = useRef(null);
   const startTimeRef = useRef(null);
   const emojiIntervalRef = useRef(null);
   const notificationTimerRef = useRef(null);
+  const congratsTimeoutRef = useRef(null);
   
   // Initialize startTimeRef from localStorage on component mount
   useEffect(() => {
@@ -115,6 +132,29 @@ function App() {
     }, 4000);
   }, [dismissNotification]);
   
+  // Show congratulations animation
+  const showCongratulations = useCallback(() => {
+    // Clear any previous animation timeout
+    if (congratsTimeoutRef.current) {
+      clearTimeout(congratsTimeoutRef.current);
+    }
+    
+    // Reset exiting state and show the animation
+    setIsCongratsExiting(false);
+    setShowCongrats(true);
+    
+    // Start fade-out after 3.5 seconds
+    congratsTimeoutRef.current = setTimeout(() => {
+      setIsCongratsExiting(true);
+      
+      // Hide the animation after fade-out animation completes
+      setTimeout(() => {
+        setShowCongrats(false);
+        setIsCongratsExiting(false);
+      }, 500); // Match the CSS animation duration
+    }, 3500);
+  }, []);
+  
   // Save settings to localStorage when they change
   useEffect(() => {
     localStorage.setItem('hourlyRate', hourlyRate.toString());
@@ -160,6 +200,9 @@ function App() {
       if (notificationTimerRef.current) {
         clearTimeout(notificationTimerRef.current);
       }
+      if (congratsTimeoutRef.current) {
+        clearTimeout(congratsTimeoutRef.current);
+      }
     };
   }, []);
   
@@ -201,6 +244,7 @@ function App() {
           setEarnings(finalEarnings);
           
           showNotification('Work duration completed!', 'success');
+          showCongratulations();
         }
       }, 1000);
     }
@@ -210,7 +254,7 @@ function App() {
         clearInterval(timerRef.current);
       }
     };
-  }, [isRunning, hourlyRate, duration, showNotification]);
+  }, [isRunning, hourlyRate, duration, showNotification, showCongratulations]);
   
   // Time sync check - verify timer accuracy every 10 seconds
   useEffect(() => {
@@ -359,39 +403,67 @@ function App() {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
+  // Helper function to create a new emoji for animation
+  const createEmoji = () => {
+    return {
+      id: Date.now() + Math.random(),
+      x: Math.random() * 100, // Random position from left (0-100%)
+      duration: 3 + Math.random() * 4, // Random duration between 3-7s
+      created: Date.now()
+    };
+  };
+  
   // Start the timer - wrap in useCallback
   const startTimer = useCallback(() => {
     if (isRunning) return;
     
-    // Reset manually paused flag when explicitly starting the timer
+    // Create emoji animation interval
+    if (emojiIntervalRef.current) clearInterval(emojiIntervalRef.current);
+    emojiIntervalRef.current = setInterval(() => {
+      // Create new money emojis occasionally
+      if (Math.random() < 0.3) { // 30% chance each second
+        setEmojis(prev => {
+          // Limit to 10 emojis at once
+          if (prev.length >= 10) {
+            return [...prev.slice(-9), createEmoji()];
+          }
+          return [...prev, createEmoji()];
+        });
+      }
+      
+      // Clean up old emojis
+      setEmojis(prev => prev.filter(emoji => emoji.created > Date.now() - emoji.duration * 1000));
+    }, 1000);
+    
+    // Reset manually paused flag
     setManuallyPaused(false);
     
     const now = new Date();
     let start;
     
+    // If start time is provided, use it, otherwise use current time
     if (startTime) {
-      start = new Date();
       const [hours, minutes] = startTime.split(':');
-      start.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0);
+      start = new Date();
+      start.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
       
-      // Check if this time appears to be in the future
+      // If start time is in the future
       if (start > now) {
-        // First, check if treating this as yesterday's time makes more sense
+        // Check if it's reasonable to interpret as yesterday's time
         const yesterdayStart = new Date(start);
         yesterdayStart.setDate(yesterdayStart.getDate() - 1);
         
         const durationInMs = duration * 60 * 60 * 1000;
         const timeFromYesterdayStart = now - yesterdayStart;
         
-        // If the time since yesterday's start is within the duration window,
-        // assume the user meant yesterday's time
+        // If the time is within yesterday's working hours
         if (timeFromYesterdayStart >= 0 && timeFromYesterdayStart <= durationInMs) {
           start = yesterdayStart;
           console.log('Interpreted future time as yesterday\'s time:', start.toLocaleString());
-          showNotification(`Timer started with yesterday's start time (${startTime})`, 'info');
+          showNotification(`${t('notifications.startTimeYesterday')} (${startTime})`, 'info');
         } else {
           // This is genuinely a future start time
-          showNotification(`Timer will start at ${startTime}`, 'info');
+          showNotification(`${t('notifications.timerWillStart')} ${startTime}`, 'info');
           
           // Store start time for reference
           startTimeRef.current = start;
@@ -424,10 +496,10 @@ function App() {
             // Check if now is still within the duration window
             const potentialEnd = new Date(start.getTime() + durationInMs);
             if (now <= potentialEnd) {
-              showNotification(`Timer started with yesterday's start time (${startTime})`, 'info');
+              showNotification(`${t('notifications.startTimeYesterday')} (${startTime})`, 'info');
             } else {
               // If we're beyond the duration window, use the max duration
-              showNotification(`Timer started with yesterday's time, but duration already exceeded`, 'warning');
+              showNotification(t('notifications.durationExceeded'), 'warning');
             }
           }
         }
@@ -487,13 +559,19 @@ function App() {
         setEarnings(finalEarnings);
         
         showNotification('Work duration completed!', 'success');
+        showCongratulations();
       }
     }, 1000);
     
     // Close settings after starting
     setIsSettingsOpen(false);
     
-  }, [duration, hourlyRate, isRunning, showNotification, startTime]);
+    // If timer is completing immediately
+    if (cappedElapsed >= duration * 3600) {
+      showNotification(t('notifications.timerComplete'), 'success');
+      showCongratulations();
+    }
+  }, [duration, hourlyRate, isRunning, showNotification, startTime, t, showCongratulations]);
   
   // Apply settings while timer is running
   const applySettings = useCallback(() => {
@@ -533,7 +611,7 @@ function App() {
         setIsSettingsOpen(false);
         
         // Show notification
-        showNotification(`Timer will start at ${startTime}`, 'info');
+        showNotification(t('notifications.settingsSaved'), 'success');
         return;
       }
       
@@ -561,8 +639,8 @@ function App() {
     setIsSettingsOpen(false);
     
     // Show notification
-    showNotification('Settings updated!', 'success');
-  }, [duration, hourlyRate, isRunning, showNotification, startTime, startTimer]);
+    showNotification(t('notifications.settingsSaved'), 'success');
+  }, [duration, hourlyRate, isRunning, showNotification, startTime, startTimer, t]);
   
   // Pause the timer - wrap in useCallback
   const pauseTimer = useCallback(() => {
@@ -573,10 +651,11 @@ function App() {
     // Set manually paused flag to prevent auto-restart
     setManuallyPaused(true);
     
-    showNotification('Timer paused', 'warning');
-  }, [isRunning, showNotification]);
+    showNotification(t('notifications.manuallyPaused'), 'warning');
+  }, [isRunning, showNotification, t]);
   
   // Reset the timer - wrap in useCallback
+  // eslint-disable-next-line no-unused-vars
   const resetTimer = useCallback(() => {
     clearInterval(timerRef.current);
     setIsRunning(false);
@@ -586,29 +665,30 @@ function App() {
     setStartTimestamp(null); // Clear the persisted start timestamp
     setEndTime(null);
     
-    // Reset manually paused flag on timer reset
-    setManuallyPaused(false);
+    showNotification(t('notifications.timerReset'), 'info');
     
-    showNotification('Timer reset', 'info');
-  }, [showNotification]);
+    // Clear manually paused flag when resetting
+    setManuallyPaused(false);
+  }, [showNotification, t]);
   
   // Toggle settings popup
   const toggleSettings = useCallback(() => {
     if (isSettingsOpen) {
-      // Start exit animation
+      // Close settings with animation
       setIsSettingsExiting(true);
-      
-      // Wait for animation to complete before closing
       setTimeout(() => {
         setIsSettingsOpen(false);
         setIsSettingsExiting(false);
       }, 300); // Match animation duration
     } else {
+      // Open settings without delay
       setIsSettingsOpen(true);
+      setIsSettingsExiting(false);
     }
   }, [isSettingsOpen]);
   
   // Clear all stored data
+  // eslint-disable-next-line no-unused-vars
   const clearStoredData = useCallback(() => {
     // Use inline reset functionality instead of calling resetTimer
     clearInterval(timerRef.current);
@@ -624,7 +704,7 @@ function App() {
     const keysToRemove = [
       'hourlyRate', 'startTime', 'duration',
       'earnings', 'isRunning', 'elapsed', 'endTime', 
-      'manuallyPaused', 'startTimestamp'
+      'manuallyPaused', 'startTimestamp', 'language'
     ];
     
     // Remove each key from localStorage
@@ -634,6 +714,7 @@ function App() {
     setHourlyRate(15);
     setStartTime('');
     setDuration(8);
+    setLanguage('system');
     
     showNotification('All saved data has been cleared', 'info');
   }, [showNotification]);
@@ -689,6 +770,7 @@ function App() {
             const finalEarnings = (hourlyRate / 3600) * durationInSeconds;
             setEarnings(finalEarnings);
             showNotification('Work duration completed!', 'success');
+            showCongratulations();
           }
         }, 1000);
         
@@ -698,7 +780,7 @@ function App() {
     }, 1000); // Check every second for more accuracy
     
     return () => clearInterval(autoStartCheckRef);
-  }, [isRunning, startTime, duration, hourlyRate, showNotification, manuallyPaused, startTimestamp]);
+  }, [isRunning, startTime, duration, hourlyRate, showNotification, manuallyPaused, startTimestamp, showCongratulations]);
   
   // Handle end time reached
   useEffect(() => {
@@ -716,8 +798,23 @@ function App() {
       setEarnings(finalEarnings);
       
       showNotification('Work duration completed!', 'success');
+      showCongratulations();
+      setManuallyPaused(true);
     }
-  }, [elapsed, isRunning, endTime, showNotification, duration, hourlyRate]);
+  }, [elapsed, isRunning, endTime, showNotification, duration, hourlyRate, showCongratulations]);
+
+  // Handle language change
+  const handleLanguageChange = (e) => {
+    const newLang = e.target.value;
+    setLanguage(newLang);
+    changeLanguage(newLang);
+  };
+  
+  // Calculate progress percentage
+  // eslint-disable-next-line no-unused-vars
+  const progressPercentage = elapsed > 0 && duration > 0
+    ? Math.min(100, (elapsed / (duration * 3600)) * 100)
+    : 0;
 
   return (
     <div className="app dark-theme">
@@ -732,6 +829,26 @@ function App() {
           >
             ×
           </button>
+        </div>
+      )}
+      
+      {/* Congratulations animation */}
+      {showCongrats && (
+        <div className={`congrats-container ${isCongratsExiting ? 'exiting' : ''}`}>
+          {Array.from({ length: 50 }).map((_, i) => (
+            <div
+              key={i}
+              className="confetti"
+              style={{
+                left: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 3}s`,
+                backgroundColor: `hsl(${Math.random() * 360}, 100%, 50%)`,
+              }}
+            ></div>
+          ))}
+          <div className="congrats-message">
+            <span>🎉</span> {t('notifications.congratulations')} <span>🎉</span>
+          </div>
         </div>
       )}
       
@@ -760,23 +877,19 @@ function App() {
           
           <div className="time-display">
             <div className="elapsed-time">
-              <h3>Elapsed Time</h3>
+              <h3>{t('stats.elapsedTime')}</h3>
               <span>{formatTime(elapsed)}</span>
             </div>
             
             {endTime && (
               <div className="remaining-time">
-                <h3>Remaining Time</h3>
+                <h3>{t('stats.estimatedEndTime')}</h3>
                 <span>
-                  {formatTime(Math.max(0, (endTime - new Date()) / 1000))}
+                  {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
             )}
           </div>
-          
-          {/* <div className="rate-display">
-            <span>{formatCurrency(hourlyRate)}/hr</span>
-          </div> */}
           
           <div className="fullscreen-controls">
             <div className="button-group">
@@ -786,11 +899,11 @@ function App() {
                   onClick={startTimer}
                   disabled={hourlyRate <= 0 || duration <= 0}
                 >
-                  Start
+                  {elapsed > 0 && manuallyPaused ? t('timer.resume') : t('timer.start')}
                 </button>
               ) : (
                 <button className="btn pause small" onClick={pauseTimer}>
-                  Pause - {formatCurrency(hourlyRate)}/hr
+                  {t('timer.pause')} - {formatCurrency(hourlyRate)}/hr
                 </button>
               )}
               <button 
@@ -809,7 +922,7 @@ function App() {
           <div className={`settings-modal-overlay ${isSettingsExiting ? 'exiting' : ''}`}>
             <div className={`settings-modal ${isSettingsExiting ? 'exiting' : ''}`}>
               <div className="settings-modal-header">
-                <h2>Settings</h2>
+                <h2>{t('settings.title')}</h2>
                 <button 
                   className="close-settings-btn" 
                   onClick={toggleSettings}
@@ -821,7 +934,7 @@ function App() {
               
               <div className="settings-content">
                 <div className="form-group">
-                  <label htmlFor="hourlyRate">Hourly Rate ($)</label>
+                  <label htmlFor="hourlyRate">{t('settings.hourlyRate')}</label>
                   <input
                     type="number"
                     id="hourlyRate"
@@ -833,7 +946,7 @@ function App() {
                 </div>
                 
                 <div className="form-group">
-                  <label htmlFor="startTime">Start Time (optional)</label>
+                  <label htmlFor="startTime">{t('settings.startTime')}</label>
                   <input
                     type="time"
                     id="startTime"
@@ -844,7 +957,7 @@ function App() {
                 </div>
                 
                 <div className="form-group">
-                  <label htmlFor="duration">Work Duration (hours)</label>
+                  <label htmlFor="duration">{t('settings.duration')}</label>
                   <input
                     type="number"
                     id="duration"
@@ -855,19 +968,34 @@ function App() {
                   />
                 </div>
                 
+                <div className="form-group">
+                  <label htmlFor="language">{t('settings.language')}</label>
+                  <select
+                    id="language"
+                    value={language}
+                    onChange={handleLanguageChange}
+                  >
+                    {supportedLanguages.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {t(`languages.${lang.code}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
                 <div className="controls">
                   <button 
                     className="btn start"
                     onClick={applySettings}
                     disabled={hourlyRate <= 0 || duration <= 0}
                   >
-                    {isRunning ? 'Apply Changes' : 'Save & Start'}
+                    {isRunning ? t('settings.save') : t('settings.save')}
                   </button>
                   <button 
                     className="btn cancel" 
                     onClick={toggleSettings}
                   >
-                    Cancel
+                    {t('settings.cancel')}
                   </button>
                 </div>
                 
@@ -876,7 +1004,7 @@ function App() {
                     className="btn reset" 
                     onClick={resetTimer}
                   >
-                    Reset Timer
+                    {t('timer.reset')}
                   </button>
                 </div>
                 
