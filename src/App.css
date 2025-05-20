@@ -618,6 +618,21 @@ small {
   color: #999;
 }
 
+.compile-time-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: center;
+  text-align: center;
+}
+
+.compile-time-section small {
+  color: #888;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .earnings-amount {

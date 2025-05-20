@@ -889,6 +889,12 @@ function App() {
                   </button>
                   <small>This will reset all settings and timer data</small>
                 </div>
+                
+                <div className="compile-time-section">
+                  <small>
+                    Build time: {process.env.REACT_APP_BUILD_TIME || new Date().toLocaleString()}
+                  </small>
+                </div>
               </div>
             </div>
           </div>
