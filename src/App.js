@@ -243,7 +243,7 @@ function App() {
           const finalEarnings = (hourlyRate / 3600) * durationInSeconds;
           setEarnings(finalEarnings);
           
-          showNotification('Work duration completed!', 'success');
+          // showNotification('Work duration completed!', 'success');
           showCongratulations();
         }
       }, 1000);
@@ -558,7 +558,7 @@ function App() {
         const finalEarnings = (hourlyRate / 3600) * durationInSeconds;
         setEarnings(finalEarnings);
         
-        showNotification('Work duration completed!', 'success');
+        // showNotification('Work duration completed!', 'success');
         showCongratulations();
       }
     }, 1000);
@@ -568,7 +568,7 @@ function App() {
     
     // If timer is completing immediately
     if (cappedElapsed >= duration * 3600) {
-      showNotification(t('notifications.timerComplete'), 'success');
+      // showNotification(t('notifications.timerComplete'), 'success');
       showCongratulations();
     }
   }, [duration, hourlyRate, isRunning, showNotification, startTime, t, showCongratulations]);
@@ -769,7 +769,7 @@ function App() {
             // Calculate final earnings based on full duration
             const finalEarnings = (hourlyRate / 3600) * durationInSeconds;
             setEarnings(finalEarnings);
-            showNotification('Work duration completed!', 'success');
+            // showNotification('Work duration completed!', 'success');
             showCongratulations();
           }
         }, 1000);
@@ -797,7 +797,7 @@ function App() {
       const finalEarnings = (hourlyRate / 3600) * exactDuration;
       setEarnings(finalEarnings);
       
-      showNotification('Work duration completed!', 'success');
+      // showNotification('Work duration completed!', 'success');
       showCongratulations();
       setManuallyPaused(true);
     }

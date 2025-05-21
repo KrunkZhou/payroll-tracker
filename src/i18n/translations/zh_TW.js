@@ -30,7 +30,7 @@ const zh_TW = {
     manuallyPaused: "計時器已手動暫停。",
     startTimeYesterday: "計時器已使用昨天的開始時間",
     timerWillStart: "計時器將在以下時間開始",
-    durationExceeded: "計時器使用了昨天的時間，但工作時長已超出",
+    durationExceeded: "計時器工作時長已超出",
     congratulations: "恭喜！"
   },
   languages: {

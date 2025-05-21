@@ -30,7 +30,7 @@ const en = {
     manuallyPaused: "Timer paused manually.",
     startTimeYesterday: "Timer started with yesterday's start time",
     timerWillStart: "Timer will start at",
-    durationExceeded: "Timer started with yesterday's time, but duration already exceeded",
+    durationExceeded: "Timer duration already exceeded",
     congratulations: "Congratulations!"
   },
   languages: {
